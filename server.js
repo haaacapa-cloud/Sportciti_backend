@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require("socket.io");
-const Database = require('better-sqlite3');
 const app = express();
 const axios = require('axios');
 const session = require('express-session');
@@ -289,7 +288,7 @@ app.get('/logout', (req, res) => {
 // --- Database Connections ---
 // const groundsDb = new Database('grounds.db', { verbose: console.log }); 
 // const playersDb = new Database('players.db', { verbose: console.log });
-const messagesDb = new Database('messages.db', { verbose: console.log });
+// const messagesDb = new Database('messages.db', { verbose: console.log });
 
 // --- Helper function to generate unique 8-digit string ID ---
 function generateUniquePlayerId() {
@@ -302,22 +301,22 @@ function generateUniquePlayerId() {
   return id;
 }
 
-function initializeDatabase() {
+// function initializeDatabase() {
 
-  // --- Messages Table Setup (Existing with TEXT senderId and receiverId) ---
-  messagesDb.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      senderId TEXT NOT NULL,   
-      receiverId TEXT NOT NULL, 
-      message TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  console.log('Messages table initialized.');
-}
+//   // --- Messages Table Setup (Existing with TEXT senderId and receiverId) ---
+//   messagesDb.exec(`
+//     CREATE TABLE IF NOT EXISTS messages (
+//       id INTEGER PRIMARY KEY AUTOINCREMENT,
+//       senderId TEXT NOT NULL,   
+//       receiverId TEXT NOT NULL, 
+//       message TEXT NOT NULL,
+//       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+//     );
+//   `);
+//   console.log('Messages table initialized.');
+// }
 
-initializeDatabase(); // Initialize all databases and tables on server start
+// initializeDatabase(); // Initialize all databases and tables on server start
 
 // --- HTTP API Routes ---
 // 🔥 GET GROUNDS (Cloudant)
@@ -425,24 +424,24 @@ app.post('/api/players', isAuthenticated, async (req, res) => {
 });
 
 // API endpoint to fetch chat history between two users (IDs are now TEXT)
-app.get('/api/messages/:user1Id/:user2Id', (req, res) => {
-  const { user1Id, user2Id } = req.params;
-  // Ensure consistent order for querying conversation using string comparison
-  const [idA, idB] = [user1Id, user2Id].sort(); // Sort lexicographically for consistency
+// app.get('/api/messages/:user1Id/:user2Id', (req, res) => {
+//   const { user1Id, user2Id } = req.params;
+//   // Ensure consistent order for querying conversation using string comparison
+//   const [idA, idB] = [user1Id, user2Id].sort(); // Sort lexicographically for consistency
 
-  try {
-    const messages = messagesDb.prepare(`
-      SELECT * FROM messages 
-      WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
-      ORDER BY timestamp ASC
-    `).all(idA, idB, idB, idA); 
+//   try {
+//     const messages = messagesDb.prepare(`
+//       SELECT * FROM messages 
+//       WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
+//       ORDER BY timestamp ASC
+//     `).all(idA, idB, idB, idA); 
     
-    res.json(messages);
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+//     res.json(messages);
+//   } catch (error) {
+//     console.error('Error fetching messages:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
 
 
 // Root route for server health check
@@ -463,51 +462,87 @@ const io = new Server(server, {
 // --- Socket.IO Event Handling (MOVED INSIDE server.listen CALLBACK) ---
 // This ensures 'io' is fully initialized and the server is actively listening
 // before the WebSocket listeners are set up.
+// server.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+//   console.log(`HTTP routes: http://localhost:${PORT}/api/grounds, http://localhost:${PORT}/api/players`);
+//   console.log(`WebSocket server running on port ${PORT}`);
+
+//   io.on('connection', (socket) => {
+//     console.log('A user connected:', socket.id);
+
+//     // Event to join a specific chat room (roomName will be string-based IDs)
+//     socket.on('joinChat', (roomName) => {
+//       socket.join(roomName);
+//       console.log(`User ${socket.id} joined room: ${roomName}`);
+//     });
+
+//     // Event to send a message (senderId, receiverId are now TEXT)
+//     socket.on('sendMessage', async (data) => {
+//       const { senderId, receiverId, message, roomName } = data;
+//       console.log(`Message received for room ${roomName} from ${senderId} to ${receiverId}: ${message}`);
+
+//       try {
+//         // Store message in the database
+//         const insertMessage = messagesDb.prepare(`
+//           INSERT INTO messages (senderId, receiverId, message)
+//           VALUES (?, ?, ?)
+//         `);
+//         const result = insertMessage.run(senderId, receiverId, message);
+//         const newMessageId = result.lastInsertRowid; 
+
+//         // Fetch the full message data with timestamp from DB
+//         const storedMessage = messagesDb.prepare('SELECT * FROM messages WHERE id = ?').get(newMessageId);
+
+//         // Emit the message to all clients in the specific chat room
+//         io.to(roomName).emit('receiveMessage', storedMessage);
+//         console.log(`Message stored and emitted to room ${roomName}: ${JSON.stringify(storedMessage)}`);
+//       } catch (error) {
+//         console.error('Error saving message to DB or emitting:', error);
+//         socket.emit('chatError', 'Failed to send message.');
+//       }
+//     });
+
+//     socket.on('disconnect', () => {
+//       console.log('User disconnected:', socket.id);
+//     });
+//   }); // End of io.on('connection')
+// }); // End of server.listen callback
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`HTTP routes: http://localhost:${PORT}/api/grounds, http://localhost:${PORT}/api/players`);
   console.log(`WebSocket server running on port ${PORT}`);
 
   io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    // Event to join a specific chat room (roomName will be string-based IDs)
+    // Join chat room
     socket.on('joinChat', (roomName) => {
       socket.join(roomName);
       console.log(`User ${socket.id} joined room: ${roomName}`);
     });
 
-    // Event to send a message (senderId, receiverId are now TEXT)
-    socket.on('sendMessage', async (data) => {
+    // Send message (NO DATABASE)
+    socket.on('sendMessage', (data) => {
       const { senderId, receiverId, message, roomName } = data;
-      console.log(`Message received for room ${roomName} from ${senderId} to ${receiverId}: ${message}`);
 
-      try {
-        // Store message in the database
-        const insertMessage = messagesDb.prepare(`
-          INSERT INTO messages (senderId, receiverId, message)
-          VALUES (?, ?, ?)
-        `);
-        const result = insertMessage.run(senderId, receiverId, message);
-        const newMessageId = result.lastInsertRowid; 
+      const msg = {
+        senderId,
+        receiverId,
+        message,
+        timestamp: new Date().toISOString()
+      };
 
-        // Fetch the full message data with timestamp from DB
-        const storedMessage = messagesDb.prepare('SELECT * FROM messages WHERE id = ?').get(newMessageId);
+      // 🔥 emit to room
+      io.to(roomName).emit('receiveMessage', msg);
 
-        // Emit the message to all clients in the specific chat room
-        io.to(roomName).emit('receiveMessage', storedMessage);
-        console.log(`Message stored and emitted to room ${roomName}: ${JSON.stringify(storedMessage)}`);
-      } catch (error) {
-        console.error('Error saving message to DB or emitting:', error);
-        socket.emit('chatError', 'Failed to send message.');
-      }
+      console.log("Message sent:", msg);
     });
 
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
     });
-  }); // End of io.on('connection')
-}); // End of server.listen callback
+  });
+});
 
 // --- Graceful Shutdown for All Databases ---
 process.on('SIGINT', () => {

@@ -13,7 +13,6 @@
   "dependencies": {
     "@ibm-cloud/cloudant": "^0.12.18",
     "axios": "^1.15.1",
-    "better-sqlite3": "^11.10.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-session": "^1.19.0",
