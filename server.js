@@ -30,7 +30,8 @@ app.use(session({
 // 🔐 CONFIG
 const clientId = "a7a21aad-2260-471a-9641-e34670028689";
 const clientSecret = "Mjk3OTM3MmQtYzcyYy00NzYyLThhMDAtMDMwMjIxZGZhZTgx";
-const redirectUri = "http://localhost:5000/callback";
+// const redirectUri = "http://localhost:5000/callback";
+const redirectUri: "https://sportciti-backend.onrender.com/callback"
 const oauthServer = "https://au-syd.appid.cloud.ibm.com/oauth/v4/d0b5261a-80f9-4b6e-93cd-dee154400ea7";
 
 const cloudant = CloudantV1.newInstance({
